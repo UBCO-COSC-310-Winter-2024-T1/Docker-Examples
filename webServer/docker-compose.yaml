@@ -1,0 +1,44 @@
+services:
+  web-server:
+    build:
+      dockerfile: php.Dockerfile
+      context: .
+    restart: always
+    volumes:
+      - "./code:/var/www/html/"
+    ports:
+      - "8080:80"           #maps 8080 from outside to 80 on the container
+    depends_on:
+      mysql-server: 
+        condition: service_healthy
+
+  mysql-server:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - ./prepdb.sql:/docker-entrypoint-initdb.d/prepdb.sql
+      - mysql-data-2:/var/lib/mysql    ##stores data on host via volume
+      
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-uroot", "-psecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.0.1
+    restart: always
+    environment:
+      PMA_HOST: mysql-server
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    ports:
+      - "5050:80"     #if you got getting port conflicts with phpmyadmin on port 5000, you can change (ie 5050)
+    depends_on:
+      mysql-server: 
+        condition: service_healthy
+
+volumes:
+  mysql-data-2:
