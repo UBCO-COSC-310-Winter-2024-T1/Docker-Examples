@@ -1,0 +1,44 @@
+services:
+  web: 
+    build:
+      context: app
+      target: builder
+      dockerfile: flask.Dockerfile
+    volumes:
+      - "./app:/app"    ##"should" map a app to app in container
+    # # flask requires SIGINT to stop gracefully
+    # (default stop signal from Compose is SIGTERM)
+    stop_signal: SIGINT
+    ports:
+      - '8000:8000'
+    
+  mysql-server:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - ./prepdb.sql:/docker-entrypoint-initdb.d/prepdb.sql
+      - mysql-data:/var/lib/mysql    ##stores data on host via volume
+      
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-uroot", "-psecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.0.1
+    restart: always
+    environment:
+      PMA_HOST: mysql-server
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    ports:
+      - "8080:80"     #if you got getting port conflicts with phpmyadmin on port 5000, you can change (ie 5050)
+    depends_on:
+      mysql-server: 
+        condition: service_healthy
+
+volumes:
+  mysql-data:
